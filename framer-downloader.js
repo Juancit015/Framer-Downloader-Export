@@ -76,7 +76,6 @@ function parseArgs(argv) {
         depth: -1,
         maxPages: 500,
         fresh: false,
-        stripFramer: false,
         extraBlocked: []
     };
 
@@ -95,9 +94,6 @@ function parseArgs(argv) {
                     break;
                 case "fresh":
                     config.fresh = true;
-                    break;
-                case "strip-framer":
-                    config.stripFramer = true;
                     break;
                 case "blocked":
                     config.extraBlocked = String(value)
@@ -197,7 +193,6 @@ async function main() {
 📁 Salida: ${OUTPUT}
 ⚙️  Profundidad: ${config.depth < 0 ? "infinita" : config.depth}
 ⚙️  Máx. páginas: ${config.maxPages}
-⚙️  Quitar crédito Framer: ${config.stripFramer ? "sí" : "no"}
 🚫 Dominios bloqueados: ${blockedDomains.length} (editor + analytics)
 `);
 
@@ -575,59 +570,6 @@ async function main() {
         });
     }
 
-    async function stripFramerCredit(page) {
-
-        await page.evaluate(() => {
-
-            const phrases = [
-                "Made in Framer",
-                "Made with Framer",
-                "Created with Framer"
-            ];
-
-            const walker =
-                document.createTreeWalker(
-                    document.body,
-                    NodeFilter.SHOW_TEXT
-                );
-
-            const textNodes = [];
-
-            while (walker.nextNode()) {
-                textNodes.push(walker.currentNode);
-            }
-
-            for (const node of textNodes) {
-
-                const text =
-                    node.textContent.trim();
-
-                if (!phrases.some(p => text === p)) {
-                    continue;
-                }
-
-                const element =
-                    node.parentElement;
-
-                if (!element) {
-                    node.textContent = "";
-                    continue;
-                }
-
-                const keptText =
-                    element.textContent
-                        .replace(text, "")
-                        .trim();
-
-                if (keptText.length === 0) {
-                    element.remove();
-                } else {
-                    node.textContent = "";
-                }
-            }
-        });
-    }
-
     async function processPage(context, url, depth) {
 
         url =
@@ -706,10 +648,6 @@ async function main() {
             await scrollPage(page);
 
             await waitMs(2000);
-
-            if (config.stripFramer) {
-                await stripFramerCredit(page);
-            }
 
             const output =
                 pagePath(url);
@@ -839,10 +777,6 @@ async function main() {
             await scrollPage(page);
 
             await waitMs(1500);
-
-            if (config.stripFramer) {
-                await stripFramerCredit(page);
-            }
 
             const html =
                 await page.content();

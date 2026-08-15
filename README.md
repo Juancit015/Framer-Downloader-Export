@@ -72,7 +72,6 @@ Si no pasás una URL como argumento, el script te la pregunta interactivamente.
 | `--depth=N` | Máxima profundidad de enlaces a recorrer. `-1` (por defecto) = infinita; `1` = solo la home y sus enlaces directos. |
 | `--max-pages=N` | Máximo de páginas a descargar (por defecto `500`). Protege contra sitios con paginación infinita. |
 | `--fresh` | Ignora el estado guardado y empieza de cero. |
-| `--strip-framer` | Elimina el crédito visible "Made in Framer" / "Made with Framer" del HTML guardado. |
 | `--blocked=dominio1,dominio2` | Dominios adicionales a bloquear (además de los del editor de Framer y analytics). |
 
 ### Abrir el mirror
@@ -98,10 +97,20 @@ mirror-<dominio>/
 
 ## Limpieza post-export (importante)
 
-El script **descarga** el sitio, pero no "des-Frameriza" la plantilla. Para reutilizarla como plantilla propia, después del export conviene limpiar lo que el script no toca:
+El script **descarga** el sitio, pero no "des-Frameriza" la plantilla. Para reutilizarla como plantilla propia, la limpieza de todo lo que delata a Framer **queda a disposición del usuario** y se recomienda hacerla con un agente de IA, pidiéndole por ejemplo: *"elimina de estos HTML toda referencia a Framer: el crédito 'Made in Framer', links de crédito del footer, metadatos `og:`, textos placeholder de la plantilla, favicon y tipografía de marca, conservando el diseño"*.
 
-- **Crédito visible "Made in Framer":** el script puede eliminarlo con `--strip-framer`. Nota: los sitios publicados en dominios gratuitos de Framer (`*.framer.app`) requieren ese crédito; quitarlo puede violar los términos de Framer. La decisión queda a disposición del usuario.
-- **Todo lo demás que delata a Framer** (links de crédito en el footer, metadatos `og:`, textos placeholder de la plantilla, favicon de marca, tipografía de marca, mensajes del CMS) **no lo elimina el código**: son contenido del sitio y el script no distingue marca de contenido. Lo correcto es un pase de limpieza con un agente de IA, pidiéndole por ejemplo: *"elimina de estos HTML toda referencia a Framer: créditos, links, meta tags, textos de ejemplo y placeholders, conservando el diseño"*.
+Qué incluye esa limpieza:
+
+- **Crédito visible "Made in Framer"** del footer.
+- **Links de crédito** al sitio de Framer.
+- **Metadatos** (`og:`, canonical, títulos genéricos de plantilla).
+- **Textos placeholder** y mensajes de ejemplo que trae la plantilla.
+- **Favicon y tipografía de marca** si se quieren reemplazar por los propios.
+
+El script no hace esta limpieza a propósito: el HTML exportado es el renderizado por el navegador y cualquier manipulación del DOM del sitio rompe el JS del runtime de Framer que lo acompaña. Por eso, para mantener el código estable, la limpieza se hace después del export y por el propio usuario.
+
+Nota: los sitios publicados en dominios gratuitos de Framer (`*.framer.app`) requieren el crédito "Made in Framer"; quitarlo puede violar los términos de Framer. La decisión queda a disposición del usuario.
+
 - **Interactividad:** los formularios y colecciones del CMS de Framer dependen de la API de Framer y **no se pueden replicar** en un mirror estático.
 
 ## Troubleshooting
