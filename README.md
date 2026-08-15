@@ -30,6 +30,18 @@ Necesitás Node.js y npm instalados en el sistema.
 sudo apt install nodejs npm
 ```
 
+**Arch Linux:**
+
+```bash
+sudo pacman -S nodejs npm
+```
+
+**Fedora:**
+
+```bash
+sudo dnf install nodejs npm
+```
+
 **Windows:**
 
 Instalar desde <https://nodejs.org> (versión LTS).
