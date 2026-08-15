@@ -1078,11 +1078,142 @@ async function main() {
 
     function rewriteJs(js, fileRel) {
 
-        return js.replace(
-            /https?:\/\/[^\s"'`()<>]+/g,
-            match =>
-                localFor(match, BASE.href, fileRel) || match
+        const protectedUrls = new Map();
+
+        let pre = js.replace(
+            /new\s+URL\s*\(\s*[^,]+,\s*(["'`])((?:[^"'`\\]|\\.)*)\1\s*\)/g,
+            match => {
+
+                const key =
+                    `__NU_PROTECT_${protectedUrls.size}__`;
+
+                protectedUrls.set(key, match);
+
+                return key;
+            }
         );
+
+        const absUrlPattern =
+            /https?:\/\/[^\s"'`()<>]+/g;
+
+        const localPathFrom = url => {
+
+            let local;
+
+            for (const [u, l] of downloadedAssets) {
+
+                try {
+
+                    if (
+                        new URL(u).pathname ===
+                        new URL(url).pathname
+                    ) {
+                        local = l;
+                        break;
+                    }
+
+                } catch {}
+            }
+
+            return local;
+        };
+
+        let out = pre.replace(
+            absUrlPattern,
+            match => {
+
+                const local = localPathFrom(match);
+
+                if (!local) return match;
+
+                return "/" + local;
+            }
+        );
+
+        const localToUrl =
+            new Map(
+                [...downloadedAssets]
+                    .map(([u, l]) => [l, u])
+            );
+
+        const originalUrl =
+            localToUrl.get(fileRel);
+
+        if (originalUrl) {
+
+            out = out.replace(
+                /(["'`])(\.\.?\/[^"'`]+\.(?:svg|png|jpe?g|webp|gif|avif|woff2?|ttf|otf|ico))\1/g,
+                (match, quote, rel) => {
+
+                    try {
+
+                        const resolved =
+                            new URL(rel, originalUrl);
+
+                        const local =
+                            localPathFrom(resolved.href);
+
+                        if (!local) return match;
+
+                        return (
+                            quote +
+                            "/" +
+                            local +
+                            quote
+                        );
+
+                    } catch {
+                        return match;
+                    }
+                }
+            );
+
+            out = out.replace(
+                /((?:from|import)\s*\(\s*|(?:from|import)\s*)(["'`])(\.\.?\/[^"'`]+\.(?:mjs|js))\2/g,
+                (match, pre, quote, rel) => {
+
+                    try {
+
+                        const resolved =
+                            new URL(rel, originalUrl);
+
+                        const local =
+                            downloadedAssets.get(resolved.href) ||
+                            downloadedAssets.get(
+                                resolved.href.split("#")[0]
+                            );
+
+                        if (!local) return match;
+
+                        let relLocal =
+                            relativeFrom(fileRel, local);
+
+                        if (
+                            !relLocal.startsWith(".") &&
+                            !relLocal.startsWith("/")
+                        ) {
+                            relLocal = "./" + relLocal;
+                        }
+
+                        return (
+                            pre +
+                            quote +
+                            relLocal +
+                            quote
+                        );
+
+                    } catch {
+                        return match;
+                    }
+                }
+            );
+        }
+
+        for (const [key, original] of protectedUrls) {
+            out = out.split(key).join(original);
+        }
+
+        return out;
     }
 
     function rewriteFile(fileRel) {
@@ -1227,6 +1358,73 @@ async function main() {
 
                     for (const match of absoluteMatches) {
                         collect(match[0]);
+                    }
+
+                    const localToUrl =
+                        new Map(
+                            [...downloadedAssets]
+                                .map(([u, l]) => [l, u])
+                        );
+
+                    const originalUrl =
+                        localToUrl.get(fileRel);
+
+                    if (originalUrl) {
+
+                        const importMatches =
+                            content.matchAll(
+                                /(?:from\s*|import\s*\(\s*)(["'`])(\.\.?\/[^"'`]+\.(?:mjs|js))\1/g
+                            );
+
+                        for (const match of importMatches) {
+
+                            try {
+
+                                const resolved =
+                                    new URL(
+                                        match[2],
+                                        originalUrl
+                                    );
+
+                                collect(resolved.href);
+
+                            } catch {}
+                        }
+
+                        const relAssetMatches =
+                            content.matchAll(
+                                /(["'`])(\.\.?\/[^"'`]+\.(?:svg|png|jpe?g|webp|gif|avif|woff2?|ttf|otf|ico))\1/g
+                            );
+
+                        for (const match of relAssetMatches) {
+
+                            try {
+
+                                const resolved =
+                                    new URL(
+                                        match[2],
+                                        originalUrl
+                                    );
+
+                                let found = false;
+
+                                for (const [u] of downloadedAssets) {
+
+                                    if (
+                                        new URL(u).pathname ===
+                                        resolved.pathname
+                                    ) {
+                                        found = true;
+                                        break;
+                                    }
+                                }
+
+                                if (!found) {
+                                    collect(resolved.href);
+                                }
+
+                            } catch {}
+                        }
                     }
                 }
             }

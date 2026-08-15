@@ -2,6 +2,19 @@
 
 Todas las entradas de cambios visibles de este proyecto se documentan en este archivo.
 
+## [1.1.0] - 2026-08-15
+
+### Fixed
+
+- Importación de chunks del runtime de Framer (`./motion.xxx.mjs`, `./framer.xxx.mjs` y otros). El runtime carga estos módulos por import dinámico y no están referenciados en el HTML; ahora el export los descubre dentro de los `.mjs` descargados, los descarga y reescribe sus rutas a locales.
+- Imports dinámicos escritos con backticks (`` import(`./x.mjs`) ``), típicos del bundler de Framer.
+- Recursos referenciados con rutas relativas dentro del runtime (`../../images/x.svg`): ahora se reescriben a rutas absolutas locales (`/assets/...`), porque el runtime los resuelve contra el documento y no contra el módulo.
+- URLs absolutas usadas como base de `new URL(rel, base)` dentro del runtime: se protegen del reescritura, ya que `new URL()` exige una base absoluta con protocolo. Sin este fix el runtime de Framer crasheaba con `Invalid base URL` y desactivaba toda la interactividad (animaciones de scroll, menús, etc.).
+
+### Changed
+
+- Las URLs absolutas dentro de los `.mjs` ahora se reescriben a rutas absolutas locales (`/assets/...`) en lugar de relativas al módulo, para que el runtime las resuelva correctamente contra el documento.
+
 ## [1.0.1] - 2026-08-15
 
 ### Removed
