@@ -1,0 +1,21 @@
+{
+  "name": "framer-downloader-export",
+  "version": "1.0.0",
+  "description": "Descarga un sitio de Framer completo (HTML renderizado, CSS, imágenes, fuentes) y reescribe sus URLs a rutas locales para reutilizarlo como plantilla estática.",
+  "main": "framer-downloader.js",
+  "scripts": {
+    "start": "node framer-downloader.js",
+    "mirror": "node framer-downloader.js"
+  },
+  "keywords": [
+    "framer",
+    "mirror",
+    "download",
+    "export",
+    "playwright"
+  ],
+  "license": "MIT",
+  "dependencies": {
+    "playwright": "^1.62.1"
+  }
+}
