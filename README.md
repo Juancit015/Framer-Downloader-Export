@@ -86,14 +86,20 @@ Si no pasás una URL como argumento, el script te la pregunta interactivamente.
 | `--fresh` | Ignora el estado guardado y empieza de cero. |
 | `--blocked=dominio1,dominio2` | Dominios adicionales a bloquear (además de los del editor de Framer y analytics). |
 
-### Abrir el mirror
+### Abrir el mirror (importante)
+
+Los sitios de Framer usan **ES modules** (`.mjs`) para su runtime y animaciones. Si abrís el mirror con doble clic sobre `index.html` (`file://`), el navegador **bloquea esos módulos por CORS** y el sitio se ve sin animaciones ni interactividad (solo queda el HTML estático).
+
+Por eso el mirror **debe servirse por HTTP**:
 
 ```bash
 cd mirror-<dominio>
 python3 -m http.server 8000
 ```
 
-Abrir con doble clic (`file://`) **no funciona bien**: los sitios de Framer usan ES modules, que el navegador bloquea por CORS cuando no se sirven por HTTP.
+Y luego abrir <http://localhost:8000/> en el navegador.
+
+> Resumen: doble clic = sin animaciones; `python3 -m http.server` = sitio completo y animado.
 
 ## Estructura de la salida
 
@@ -136,7 +142,7 @@ Nota: los sitios publicados en dominios gratuitos de Framer (`*.framer.app`) req
 ## Limitaciones conocidas
 
 - El HTML guardado es el **renderizado** por el navegador, no el HTML original del servidor (irrelevante para el resultado visual, relevante para quien quiera el HTML fuente).
-- Los módulos JS que el runtime de Framer inyecta dinámicamente pueden no capturarse; el contenido visual queda igual porque el HTML ya está renderizado.
+- Los chunks del runtime de Framer que se cargan por import dinámico **sí** se capturan (el script los descubre dentro de los `.mjs` y los descarga/reescribe), así que las animaciones de scroll y la interactividad estática funcionan en el mirror.
 - El iframe de Google Maps embebido y los enlaces externos siguen dependiendo de internet.
 
 ## CHANGELOG

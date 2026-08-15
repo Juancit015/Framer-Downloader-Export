@@ -4,6 +4,11 @@ Todas las entradas de cambios visibles de este proyecto se documentan en este ar
 
 ## [1.1.0] - 2026-08-15
 
+### Docs
+
+- README: la sección "Abrir el mirror" ahora deja claro que **no se debe abrir con `file://`** (los ES modules se bloquean por CORS y el sitio queda sin animaciones) y explica el `python3 -m http.server` como paso obligatorio.
+- README: "Limitaciones conocidas" actualizado — los chunks del runtime de Framer por import dinámico **sí** se capturan, así que las animaciones de scroll funcionan en el mirror.
+
 ### Fixed
 
 - Importación de chunks del runtime de Framer (`./motion.xxx.mjs`, `./framer.xxx.mjs` y otros). El runtime carga estos módulos por import dinámico y no están referenciados en el HTML; ahora el export los descubre dentro de los `.mjs` descargados, los descarga y reescribe sus rutas a locales.
