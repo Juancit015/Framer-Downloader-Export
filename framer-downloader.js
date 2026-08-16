@@ -38,6 +38,8 @@ const ANALYTICS_DOMAINS = [
     "onetrust.com"
 ];
 
+const FRAMER_BADGE_ID = "__framer-badge-container";
+
 const EXTENSION_BY_CONTENT_TYPE = {
     "image/png": "png",
     "image/jpeg": "jpg",
@@ -202,6 +204,7 @@ async function main() {
     let downloadedAssets = new Map();
     let cssOrigins = new Map();
     let depthMap = new Map();
+    let badgeModulesToDelete = new Set();
 
     const visitedPages = new Set();
     const queuedPages = new Set();
@@ -437,6 +440,162 @@ async function main() {
                     return match;
                 }
             );
+    }
+
+    function stripFramerBadge(html) {
+
+        let out =
+            html.replace(
+                new RegExp(
+                    `#${FRAMER_BADGE_ID}\\{[^}]*\\}`,
+                    "g"
+                ),
+                ""
+            );
+
+        const marker =
+            `<div id="${FRAMER_BADGE_ID}">`;
+
+        let idx =
+            out.indexOf(marker);
+
+        while (idx !== -1) {
+
+            let depth = 0;
+            let i = idx;
+
+            for (; i < out.length; i++) {
+
+                const rest =
+                    out.slice(i);
+
+                if (
+                    rest.startsWith("<div")
+                ) {
+                    depth++;
+                } else if (
+                    rest.startsWith("</div>")
+                ) {
+                    depth--;
+
+                    if (depth === 0) {
+                        i += 6;
+                        break;
+                    }
+                }
+            }
+
+            out =
+                out.slice(0, idx) +
+                out.slice(i);
+
+            idx =
+                out.indexOf(marker);
+        }
+
+        return out;
+    }
+
+    function extractFramerBadgeModule(js) {
+
+        const idx =
+            js.indexOf("`" + FRAMER_BADGE_ID + "`");
+
+        if (idx === -1) return null;
+
+        const match =
+            js
+                .slice(idx, idx + 500)
+                .match(/import\(`(\.\/[^`]+\.mjs)`\)/);
+
+        return match ? match[1] : null;
+    }
+
+    function removeFramerBadgeMount(js) {
+
+        const marker =
+            "`" + FRAMER_BADGE_ID + "`";
+
+        let result = "";
+        let rest = js;
+
+        while (true) {
+
+            const idx =
+                rest.indexOf(marker);
+
+            if (idx === -1) {
+                result += rest;
+                break;
+            }
+
+            let start =
+                rest.lastIndexOf(
+                    "(function(){",
+                    idx
+                );
+
+            if (start === -1) {
+                start =
+                    rest.lastIndexOf(
+                        "(()=>{",
+                        idx
+                    );
+            }
+
+            if (start === -1) {
+                result +=
+                    rest.slice(0, idx + marker.length);
+                rest =
+                    rest.slice(idx + marker.length);
+                continue;
+            }
+
+            if (
+                /[A-Za-z0-9_$]/.test(
+                    rest.slice(start - 1, start)
+                )
+            ) {
+                start -= 1;
+            }
+
+            let depth = 0;
+            let i = start;
+
+            for (; i < rest.length; i++) {
+                if (rest[i] === "(") {
+                    depth++;
+                } else if (rest[i] === ")") {
+                    depth--;
+
+                    if (depth === 0) break;
+                }
+            }
+
+            if (i >= rest.length) {
+                result +=
+                    rest.slice(0, idx + marker.length);
+                rest =
+                    rest.slice(idx + marker.length);
+                continue;
+            }
+
+            let end = i + 1;
+
+            if (
+                rest.slice(end, end + 2) === "()"
+            ) {
+                end += 2;
+            }
+
+            result +=
+                rest.slice(0, start) + "0";
+
+            rest =
+                rest.slice(end);
+        }
+
+        return result;
     }
 
     async function saveResponse(response) {
@@ -976,7 +1135,7 @@ async function main() {
 
         const context = BASE.href;
 
-        let out = html;
+        let out = stripFramerBadge(html);
 
         out =
             out.replace(
@@ -1080,7 +1239,13 @@ async function main() {
 
         const protectedUrls = new Map();
 
-        let pre = js.replace(
+        const badgeModuleRel =
+            extractFramerBadgeModule(js);
+
+        let pre =
+            removeFramerBadgeMount(js);
+
+        pre = pre.replace(
             /new\s+URL\s*\(\s*[^,]+,\s*(["'`])((?:[^"'`\\]|\\.)*)\1\s*\)/g,
             match => {
 
@@ -1138,6 +1303,26 @@ async function main() {
 
         const originalUrl =
             localToUrl.get(fileRel);
+
+        if (originalUrl && badgeModuleRel) {
+
+            try {
+
+                const resolved =
+                    new URL(
+                        badgeModuleRel,
+                        originalUrl
+                    );
+
+                const local =
+                    downloadedAssets.get(resolved.href);
+
+                if (local) {
+                    badgeModulesToDelete.add(local);
+                }
+
+            } catch {}
+        }
 
         if (originalUrl) {
 
@@ -1598,6 +1783,18 @@ async function main() {
     console.log(
         `   🔁 Archivos reescritos: ${rewrittenCount}/${checkedCount}`
     );
+
+    for (const rel of badgeModulesToDelete) {
+        try {
+            fs.rmSync(
+                path.join(OUTPUT, rel),
+                { force: true }
+            );
+            console.log(
+                `   🗑  Módulo del badge eliminado: ${rel}`
+            );
+        } catch {}
+    }
 
     fs.writeFileSync(
         path.join(OUTPUT, "mirror-info.json"),

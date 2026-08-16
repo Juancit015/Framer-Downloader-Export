@@ -2,6 +2,17 @@
 
 Todas las entradas de cambios visibles de este proyecto se documentan en este archivo.
 
+## [1.2.0] - 2026-08-16
+
+### Added
+
+- Limpieza automática del badge "Made in Framer" (crédito del plan free) al exportar, en 3 capas:
+  - HTML: se elimina el div `#__framer-badge-container` (renderizado por SSR) y su regla CSS inline.
+  - JS: se neutraliza el IIFE del runtime que remonta el badge (`getElementById("__framer-badge-container")`), con escaneo balanceado de paréntesis para no romper el resto del bundle minificado.
+  - Se borra el módulo huérfano del badge (`.mjs`) que quedaba sin referencias.
+
+Verificado contra un sitio real: el badge desaparece, el sitio renderiza completo y sin errores de consola.
+
 ## [1.1.0] - 2026-08-15
 
 ### Docs
